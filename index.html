@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src='https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js'></script>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
+        #game-frame { width: 100%; height: 100%; border: none; }
+        #float-panel { 
+            position: fixed; top: 150px; left: 10px; width: 160px; 
+            background: rgba(0, 0, 0, 0.95); border: 2px solid #00ff00; 
+            color: #fff; padding: 10px; border-radius: 10px; 
+            z-index: 99999; touch-action: none; text-align: center;
+        }
+        button { background: #00ff00; border: none; padding: 8px; width: 100%; margin-top: 5px; border-radius: 5px; font-weight: bold; }
+        #status { font-size: 10px; color: #ffcc00; margin-top: 5px; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+
+<iframe id="game-frame" src="https://hgnice0.com/#/register?invitationCode=283421928122"></iframe>
+
+<div id="float-panel">
+    <div style="cursor: move; font-size: 9px; color: #888;">[ টেনে সরান ]</div>
+    <div id="result-display" style="font-size: 14px; font-weight:bold; margin: 5px 0;">AI READY</div>
+    <button onclick="requestPermission()">১. পারমিশন</button>
+    <button onclick="scanScreen()">২. এনালাইসিস</button>
+    <div id="status">স্ট্যাটাস: রেডি</div>
+</div>
+
+<video id="video" autoplay playsinline style="display:none"></video>
+
+<script>
+    const panel = document.getElementById('float-panel');
+    const video = document.getElementById('video');
+
+    // প্যানেল ড্র্যাগ লজিক
+    let isDragging = false;
+    panel.addEventListener('touchstart', (e) => isDragging = true);
+    document.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        panel.style.top = (e.touches[0].clientY - 20) + 'px';
+        panel.style.left = (e.touches[0].clientX - 80) + 'px';
+    });
+    document.addEventListener('touchend', () => isDragging = false);
+
+    // নতুন লজিক: পারমিশন পাওয়ার গ্যারান্টি
+    async function requestPermission() {
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: { mediaSource: "screen" }
+            });
+            video.srcObject = stream;
+            document.getElementById('status').innerText = "অনুমতি সফল!";
+        } catch(err) {
+            document.getElementById('status').innerText = "অনুমতি পাননি! সেটিংসে গিয়ে ব্রাউজারের স্ক্রিন পারমিশন দিন।";
+        }
+    }
+
+    // নতুন লজিক: স্ক্রিন রিডিং ও এনালাইসিস
+    async function scanScreen() {
+        if (!video.srcObject) { document.getElementById('status').innerText = "আগে পারমিশন বাটনে চাপ দিন!"; return; }
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 1080;
+        canvas.height = video.videoHeight || 1920;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        
+        Tesseract.recognize(canvas, 'eng').then(({ data: { text } }) => {
+            let nums = text.match(/\d/g);
+            if (nums) {
+                let val = parseInt(nums[nums.length - 1]);
+                processPrediction(val);
+            } else {
+                document.getElementById('status').innerText = "নাম্বার নেই, গেমের বক্স ঠিক করুন";
+            }
+        });
+    }
+
+    // রিভার্সাল প্রেডিকশন
+    function processPrediction(val) {
+        let cycle = Math.floor((Date.now() / 90000) % 2);
+        let prediction = (val + 3) % 10;
+        if (cycle === 1) prediction = 9 - prediction;
+        let type = (prediction >= 5) ? "BIG" : "SMALL";
+        document.getElementById('result-display').innerHTML = `${prediction} (${type})`;
+        document.getElementById('status').innerText = "আপডেট হয়েছে";
+    }
+</script>
+</body>
+</html>
